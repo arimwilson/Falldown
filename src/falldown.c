@@ -5,21 +5,20 @@
 
 #include "common.h"
 #include "hmac_sha2.h"
-#include "mac_key.h"  // for kMacKey / kMacKeyLength
+#include "mac_key.h"  // for mac_key() / kMacKeyLength
 #include "settings.h"
 
-extern const char* kMacKey;
 extern const int kMacKeyLength;
+
+// Platform-specific constants.
+int kWidth, kHeight, kStatusBarHeight;
+char* kGameName;
 
 // Size of temporary buffers.
 const int kBufferSize = 256;
 
 const int kTextSize = 14;
 const int kTextLength = 12;
-
-const int kWidth = 144;
-const int kHeight = 168;
-const int kStatusBarHeight = 16;
 
 // How often to update game state.
 const int kUpdateMs = 33;
@@ -55,6 +54,8 @@ const float kInitialLineVelocity = -0.627;
 // Every kVelocityIncreaseMs, multiply line velocity by kVelocityIncrease:
 const int kVelocityIncreaseMs = 15000;
 const float kVelocityIncrease = 1.05;
+
+// Platform-specific constants.
 
 Window* game_window;
 
@@ -264,8 +265,9 @@ void get_mac(const char* game, int score, const char* nonce, char* mac) {
       message, kBufferSize, "%s%d%s", game, score, nonce);
   char binary_mac[SHA256_DIGEST_SIZE];
   hmac_sha256(
-      (unsigned char*)kMacKey, kMacKeyLength, (unsigned char*)message,
-      message_length, (unsigned char*)binary_mac, SHA256_DIGEST_SIZE);
+      (unsigned char*)mac_key(kGameName), kMacKeyLength,
+      (unsigned char*)message, message_length, (unsigned char*)binary_mac,
+      SHA256_DIGEST_SIZE);
   // Convert binary MAC to hexdigest.
   for (int i = 0; i < SHA256_DIGEST_SIZE; ++i) {
     snprintf(mac + i * 2, 3, "%02x", binary_mac[i]);
@@ -277,7 +279,6 @@ void app_message_inbox_received(DictionaryIterator* iterator, void* context) {
   Tuple* tuple = dict_find(iterator, 4);
   if (!tuple) return;
   char* nonce = tuple->value->cstring;
-  static const char* kGameName = "Falldown2";
   char mac[SHA256_DIGEST_SIZE * 2 + 1];  // sha256 in hex and terminating \0.
   get_mac(kGameName, sent_score, nonce, (char*)mac);
   DictionaryIterator* body;
@@ -398,8 +399,31 @@ void handle_timer(void* data) {
   }
 }
 
+void handle_platform() {
+  switch (watch_info_get_model()) {
+    case WATCH_INFO_MODEL_UNKNOWN:
+    case WATCH_INFO_MODEL_PEBBLE_ORIGINAL:
+    case WATCH_INFO_MODEL_PEBBLE_STEEL:
+    case WATCH_INFO_MODEL_PEBBLE_TIME:
+    case WATCH_INFO_MODEL_PEBBLE_TIME_STEEL:
+      kWidth = 144;
+      kHeight = 168;
+      kStatusBarHeight = 16;
+      kGameName = "Falldown2";
+      break;
+    case WATCH_INFO_MODEL_PEBBLE_TIME_ROUND_14:
+    case WATCH_INFO_MODEL_PEBBLE_TIME_ROUND_20:
+      kWidth = 180;
+      kHeight = 180;
+      kStatusBarHeight = 16;
+      kGameName = "Falldown3";
+      break;
+  }
+}
+
 void handle_init() {
   srand(time(NULL));
+  handle_platform();
 
   game_window = window_create();
   window_set_background_color(game_window, GColorBlack);
@@ -465,4 +489,3 @@ int main(void) {
   app_event_loop();
   handle_deinit();
 }
-
