@@ -55,8 +55,6 @@ const float kInitialLineVelocity = -0.627;
 const int kVelocityIncreaseMs = 15000;
 const float kVelocityIncrease = 1.05;
 
-// Platform-specific constants.
-
 Window* game_window;
 
 TextLayer* high_score_text_layer;
