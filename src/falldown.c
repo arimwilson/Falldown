@@ -423,6 +423,10 @@ void init_constants() {
   lines_velocity = kInitialLineVelocity;
 }
 
+void focus_handler(bool in_focus) {
+  in_menu = !in_focus;
+}
+
 void handle_init() {
   srand(time(NULL));
   init_constants();
@@ -471,6 +475,9 @@ void handle_init() {
 
   init_settings();
 
+  // Pause when not in focus.
+  app_focus_service_subscribe((AppFocusHandler)focus_handler);
+
   // Start updating the game.
   app_timer_register(kUpdateMs, (AppTimerCallback)handle_timer, NULL);
 }
@@ -478,6 +485,7 @@ void handle_init() {
 void handle_deinit() {
   // Unsubscribe from used services.
   accel_data_service_unsubscribe();
+  app_focus_service_unsubscribe();
 
   // Pop all windows off.
   window_stack_pop_all(true);
@@ -498,3 +506,4 @@ int main(void) {
   app_event_loop();
   handle_deinit();
 }
+
