@@ -91,7 +91,7 @@ void circle_init(Layer* parent_layer, int x, int y, CircleLayer** circle_layer) 
 
 // Lines data and functions.
 typedef Layer LineLayer;
-typedef LineLayer *(LineLayers[5 /* kLineCount */]);
+typedef LineLayer *(LineLayers[6 /* kLineCount */]);
 LineLayers line_layers;
 typedef struct {
   float y;  // location of this line on the screen
@@ -120,7 +120,8 @@ void line_update_proc(LineLayer* line_layer, GContext* ctx) {
 const int kLineColors[4] = {0x3cba54, 0xf4c20d, 0xdb3236, 0x4885ed};
 
 GColor line_color() {
-  return COLOR_FALLBACK(GColorFromHEX(kLineColors[rand() % 4]), GColorWhite); 
+  int color = kLineColors[rand() % 4];
+  return COLOR_FALLBACK(GColorFromHEX(color), GColorWhite); 
 }
 
 void line_generate(int y, Line* line) {
@@ -129,6 +130,7 @@ void line_generate(int y, Line* line) {
   common_shuffle_integers(line->holes_size, (int*)line->holes);
   common_insertion_sort((int*)line->holes, line->holes_size);
   line->color = line_color();
+
 }
 
 void line_init(Layer* parent_layer, int y, LineLayer** line_layer) {
@@ -416,6 +418,7 @@ void init_constants() {
   kCircleXMaxAccel = kWidth * 2 / (across_ms_per_update * across_ms_per_update);
   kLineSegmentWidth = kWidth / kLineSegments;
   kLineCount = kHeight / (kLineThickness + kDistanceBetweenLines) + 1;
+  app_log(APP_LOG_LEVEL_INFO, "falldown.c", 1, "%d", kLineCount);  
   kInitialLineVelocity = -(float)kHeight / (kDownScreenMs / kUpdateMs);
   lines_velocity = kInitialLineVelocity;
 }
@@ -442,12 +445,16 @@ void handle_init() {
 
   // Initialize the score / high score.
   high_score = persist_read_int(0);
-  high_score_text_layer = text_layer_create(GRect(0, 0, kWidth, kTextSize));
+  // 25 chosen by visual inspection.
+  int offset = PBL_IF_ROUND_ELSE(25, 0);
+  high_score_text_layer = text_layer_create(GRect(
+      offset, offset, kWidth, kTextSize));
   text_layer_set_text_alignment(high_score_text_layer, GTextAlignmentLeft);
   text_layer_set_background_color(high_score_text_layer, GColorClear);
   text_layer_set_text_color(high_score_text_layer, GColorWhite);
   layer_add_child(root_layer, (Layer*)high_score_text_layer);
-  score_text_layer = text_layer_create(GRect(0, 0, kWidth, kTextSize));
+  score_text_layer = text_layer_create(
+      GRect(0, offset, kWidth - offset, kTextSize));
   text_layer_set_text_alignment(score_text_layer, GTextAlignmentRight);
   text_layer_set_background_color(score_text_layer, GColorClear);
   text_layer_set_text_color(score_text_layer, GColorWhite);
