@@ -11,7 +11,7 @@
 extern const int kMacKeyLength;
 
 // Platform-specific constants.
-int kWidth, kHeight, kStatusBarHeight;
+int kWidth, kHeight;
 char* kGameName;
 
 // Size of temporary buffers.
@@ -359,8 +359,7 @@ void handle_timer(void* data) {
   }
   circle->x += circle_x_velocity;
   if (!intersects_y &&
-      circle->y + kCircleRadius * 2 + kCircleYVelocity <=
-          kHeight - kStatusBarHeight) {
+      circle->y + kCircleRadius * 2 + kCircleYVelocity <= kHeight) {
     // Fall down!
     circle->y += kCircleYVelocity;
   }
@@ -397,28 +396,15 @@ void handle_timer(void* data) {
 }
 
 void init_constants() {
-  switch (watch_info_get_model()) {
-    case WATCH_INFO_MODEL_UNKNOWN:
-      app_log(APP_LOG_LEVEL_INFO, "falldown.c", 394, "unknown");
-    case WATCH_INFO_MODEL_PEBBLE_ORIGINAL:
-    case WATCH_INFO_MODEL_PEBBLE_STEEL:
-    case WATCH_INFO_MODEL_PEBBLE_TIME:
-    case WATCH_INFO_MODEL_PEBBLE_TIME_STEEL:
-      kWidth = 144;
-      kHeight = 168;
-      kStatusBarHeight = 16;
-      kGameName = "Falldown2";
-      app_log(APP_LOG_LEVEL_INFO, "falldown.c", 402, "original");
-      break;
-    case WATCH_INFO_MODEL_PEBBLE_TIME_ROUND_14:
-    case WATCH_INFO_MODEL_PEBBLE_TIME_ROUND_20:
-      kWidth = 180;
-      kHeight = 180;
-      kStatusBarHeight = 24;
-      kGameName = "Falldown3";
-      app_log(APP_LOG_LEVEL_INFO, "falldown.c", 410, "round");
-      break;
-  }
+#if defined(PBL_ROUND)
+  kWidth = 180;
+  kHeight = 180;
+  kGameName = "Falldown3";
+#else
+  kWidth = 144;
+  kHeight = 168;
+  kGameName = "Falldown2";
+#endif
   // Derive max acceleration from calculating constant acceleration required to
   // make it across the screen in kAcrossScreenMs:
   //
@@ -429,9 +415,8 @@ void init_constants() {
   float across_ms_per_update = (float)kAcrossScreenMs / kUpdateMs;
   kCircleXMaxAccel = kWidth * 2 / (across_ms_per_update * across_ms_per_update);
   kLineSegmentWidth = kWidth / kLineSegments;
-  int game_height = kHeight - kStatusBarHeight;
-  kLineCount = game_height / (kLineThickness + kDistanceBetweenLines) + 1;
-  kInitialLineVelocity = -(float)game_height / (kDownScreenMs / kUpdateMs);
+  kLineCount = kHeight / (kLineThickness + kDistanceBetweenLines) + 1;
+  kInitialLineVelocity = -(float)kHeight / (kDownScreenMs / kUpdateMs);
   lines_velocity = kInitialLineVelocity;
 }
 
@@ -440,6 +425,9 @@ void handle_init() {
   init_constants();
 
   game_window = window_create();
+#if defined(PBL_SDK_2)
+  window_set_fullscreen(game_window, true);
+#endif
   window_set_background_color(game_window, GColorBlack);
   window_stack_push(game_window, true);
 
