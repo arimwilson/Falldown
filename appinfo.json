@@ -25,6 +25,8 @@
     "sdkVersion": "3",
     "shortName": "Falldown",
     "targetPlatforms": [
+        "aplite",
+        "basalt",
         "chalk"
     ],
     "uuid": "825ecbd6-354a-44d7-9187-a4874ea843de",

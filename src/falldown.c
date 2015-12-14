@@ -1,5 +1,5 @@
 // Example log line:
-// app_log(APP_LOG_LEVEL_INFO, "falldown.c", 1, "log");
+// app_log(APP_LOG_LEVEL_INFO, "falldown.c", 1, "log"); 
 
 #include <pebble.h>
 
@@ -27,14 +27,7 @@ const int kUpdateMs = 33;
 const int kCircleRadius = 4;
 // Should be able to get across the screen in kAcrossScreenMs:
 const int kAcrossScreenMs = 1000;
-// Derive max acceleration from calculating constant acceleration required to
-// make it across the screen in kAcrossScreenMs:
-//
-// distance(t) = integral(integral(acceleration(t)))
-// d(t) = a*t^2/2
-// kWidth = a*(kAcrossScreenMs / kUpdateMs)^2/2
-// a = kWidth * 2 / (kAcrossScreenMs / kUpdateMs)^2
-const float kCircleXMaxAccel = 0.32;
+float kCircleXMaxAccel;
 // Falling speed of circle.
 const float kCircleYVelocity = 1;
 
@@ -44,13 +37,11 @@ const int kLineThickness = 3;
 const int kMaxHoles = 2;
 // TODO(ariw): Different size holes?
 const int kLineSegments = 6;
-const int kLineSegmentWidth = 24;  // kWidth / kLineSegments
-// ceil((kHeight - kStatusBarHeight) / (kLineThickness + kDistanceBetweenLines))
-const int kLineCount = 5;
+int kLineSegmentWidth;
+int kLineCount;
 // Lines move up one full screen size once every kDownScreenMs:
 const int kDownScreenMs = 8000;
-// -(kHeight - kStatusBarHeight) / (kDownScreenMs / kUpdateMs)
-const float kInitialLineVelocity = -0.627;
+float kInitialLineVelocity;
 // Every kVelocityIncreaseMs, multiply line velocity by kVelocityIncrease:
 const int kVelocityIncreaseMs = 15000;
 const float kVelocityIncrease = 1.05;
@@ -106,13 +97,14 @@ typedef struct {
   float y;  // location of this line on the screen
   int holes[2 /* kMaxHoles */];  // which segments have holes
   int holes_size;
+  GColor color;
 } Line;
 int elapsed_time_ms = 0;
-float lines_velocity = -0.627;  // kInitialLineVelocity
+float lines_velocity;
 
 void line_update_proc(LineLayer* line_layer, GContext* ctx) {
   Line* line = layer_get_data(line_layer);
-  graphics_context_set_fill_color(ctx, GColorWhite);
+  graphics_context_set_fill_color(ctx, line->color);
   graphics_fill_rect(ctx, GRect(0, 0, kWidth, kLineThickness), 0, GCornerNone);
   graphics_context_set_fill_color(ctx, GColorBlack);
   for (int i = 0; i < line->holes_size; ++i) {
@@ -125,11 +117,18 @@ void line_update_proc(LineLayer* line_layer, GContext* ctx) {
   }
 }
 
+const int kLineColors[4] = {0x3cba54, 0xf4c20d, 0xdb3236, 0x4885ed};
+
+GColor line_color() {
+  return COLOR_FALLBACK(GColorFromHEX(kLineColors[rand() % 4]), GColorWhite); 
+}
+
 void line_generate(int y, Line* line) {
   line->y = y;
   line->holes_size = rand() % kMaxHoles + 1;
   common_shuffle_integers(line->holes_size, (int*)line->holes);
   common_insertion_sort((int*)line->holes, line->holes_size);
+  line->color = line_color();
 }
 
 void line_init(Layer* parent_layer, int y, LineLayer** line_layer) {
@@ -397,9 +396,10 @@ void handle_timer(void* data) {
   }
 }
 
-void handle_platform() {
+void init_constants() {
   switch (watch_info_get_model()) {
     case WATCH_INFO_MODEL_UNKNOWN:
+      app_log(APP_LOG_LEVEL_INFO, "falldown.c", 394, "unknown");
     case WATCH_INFO_MODEL_PEBBLE_ORIGINAL:
     case WATCH_INFO_MODEL_PEBBLE_STEEL:
     case WATCH_INFO_MODEL_PEBBLE_TIME:
@@ -408,20 +408,36 @@ void handle_platform() {
       kHeight = 168;
       kStatusBarHeight = 16;
       kGameName = "Falldown2";
+      app_log(APP_LOG_LEVEL_INFO, "falldown.c", 402, "original");
       break;
     case WATCH_INFO_MODEL_PEBBLE_TIME_ROUND_14:
     case WATCH_INFO_MODEL_PEBBLE_TIME_ROUND_20:
       kWidth = 180;
       kHeight = 180;
-      kStatusBarHeight = 16;
+      kStatusBarHeight = 24;
       kGameName = "Falldown3";
+      app_log(APP_LOG_LEVEL_INFO, "falldown.c", 410, "round");
       break;
   }
+  // Derive max acceleration from calculating constant acceleration required to
+  // make it across the screen in kAcrossScreenMs:
+  //
+  // distance(t) = integral(integral(acceleration(t)))
+  // d(t) = a*t^2/2
+  // kWidth = a * (kAcrossScreenMs / kUpdateMs)^2/2
+  // a = kWidth * 2 / (kAcrossScreenMs / kUpdateMs)^2
+  float across_ms_per_update = (float)kAcrossScreenMs / kUpdateMs;
+  kCircleXMaxAccel = kWidth * 2 / (across_ms_per_update * across_ms_per_update);
+  kLineSegmentWidth = kWidth / kLineSegments;
+  int game_height = kHeight - kStatusBarHeight;
+  kLineCount = game_height / (kLineThickness + kDistanceBetweenLines) + 1;
+  kInitialLineVelocity = -(float)game_height / (kDownScreenMs / kUpdateMs);
+  lines_velocity = kInitialLineVelocity;
 }
 
 void handle_init() {
   srand(time(NULL));
-  handle_platform();
+  init_constants();
 
   game_window = window_create();
   window_set_background_color(game_window, GColorBlack);
