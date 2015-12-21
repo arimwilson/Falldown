@@ -418,7 +418,6 @@ void init_constants() {
   kCircleXMaxAccel = kWidth * 2 / (across_ms_per_update * across_ms_per_update);
   kLineSegmentWidth = kWidth / kLineSegments;
   kLineCount = kHeight / (kLineThickness + kDistanceBetweenLines) + 1;
-  app_log(APP_LOG_LEVEL_INFO, "falldown.c", 1, "%d", kLineCount);  
   kInitialLineVelocity = -(float)kHeight / (kDownScreenMs / kUpdateMs);
   lines_velocity = kInitialLineVelocity;
 }
